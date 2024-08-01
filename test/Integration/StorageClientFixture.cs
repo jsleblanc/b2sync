@@ -20,12 +20,12 @@ namespace Backblaze.Tests.Integration
         /// <summary>
         /// The default test bucket created to run test methods in.
         /// </summary>
-        public static readonly string BucketName = "integraton-test-bucket-db7e";
+        public static readonly string BucketName = "integraton-test-bucket-becbef003bc7";
 
         /// <summary>
         /// The default test key created to run test methods with.
         /// </summary>
-        public static readonly string KeyName = "integration-test-key-db7e";
+        public static readonly string KeyName = "integration-test-key-becbef003bc7";
 
         #endregion
 
@@ -120,7 +120,7 @@ namespace Backblaze.Tests.Integration
             // If test key doesn't exist try to create
             if (testKey == null)
             {
-                // Create a test key 
+                // Create a test key
                 var keyResults = await Storage.Keys.CreateAsync(KeyName, Capabilities.AllControl());
                 keyResults.EnsureSuccessStatusCode();
                 Logger.LogDebug($"Key '{KeyName}' created during storage seed initialization.");
