@@ -2,6 +2,7 @@
 using Bytewizer.Backblaze.Models;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace b2sync;
 
@@ -12,6 +13,8 @@ class Program
     private const string SourceDir = "SOURCE_DIR";
     private const string TargetBucket = "TARGET_BUCKET";
     private const string TargetPath = "TARGET_PATH";
+
+    private static ILogger Logger { get; set; } = NullLogger.Instance;
 
     static async Task Main(string[] args)
     {
@@ -47,16 +50,17 @@ class Program
                 .AddSimpleConsole()
                 .SetMinimumLevel(LogLevel.Information);
         });
-
-        var cache = new MemoryCache(new MemoryCacheOptions());
-        var client = new BackblazeClient(options, loggerFactory, cache);
-        await client.ConnectAsync();
+        Logger = loggerFactory.CreateLogger<Program>();
 
         var checksumCalculator = new FileChecksumCalculator
         {
             Logger = loggerFactory.CreateLogger<FileChecksumCalculator>()
         };
+
         var directoryReader = new DirectoryReader();
+
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var client = new BackblazeClient(options, loggerFactory, cache);
         var bucketReader = new BucketReader(client);
         var bucketCleaner = new BucketCleaner(client)
         {
@@ -67,7 +71,17 @@ class Program
         {
             Logger = loggerFactory.CreateLogger<SyncTool>()
         };
-        await tool.Sync(syncOpts, CancellationToken.None);
+
+        try
+        {
+            await client.ConnectAsync();
+            await tool.Sync(syncOpts, CancellationToken.None);
+        }
+        catch (Exception e)
+        {
+            Logger.LogCritical(e, "Fatal!");
+            throw;
+        }
     }
 
     private static string GetEnvironmentVariableOrThrow(string name)
