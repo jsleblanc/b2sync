@@ -1,4 +1,5 @@
 ﻿using Bytewizer.Backblaze.Client;
+using Bytewizer.Backblaze.Models;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -28,7 +29,10 @@ class Program
         var options = new ClientOptions
         {
             KeyId = syncOpts.KeyId,
-            ApplicationKey = syncOpts.ApplicationKey
+            ApplicationKey = syncOpts.ApplicationKey,
+            UploadMaxParallel = 10,
+            UploadPartSize = 256 * FileSize.MegaByte,
+            UploadCutoffSize = 512 * FileSize.MegaByte
         };
         options.Validate();
 
