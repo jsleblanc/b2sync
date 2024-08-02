@@ -4,7 +4,6 @@ using Bytewizer.Backblaze.Models;
 using Bytewizer.Backblaze.Progress;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Serilog;
 using FileInfo = System.IO.FileInfo;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
@@ -19,8 +18,8 @@ public class SyncTool
     private readonly IBucketCleaner _bucketCleaner;
     private readonly ProgressBar _progressBar = new();
 
-    private readonly Queue<FileInfo> _failedUploads = new();
-
+    private readonly Queue<UploadAttempt> _failedUploads = new();
+    private const int MaxUploadAttempts = 10;
     public ILogger Logger { get; init; } = NullLogger.Instance;
     public SyncTool(
         IStorageClient client,
@@ -74,10 +73,14 @@ public class SyncTool
         Logger.LogInformation("Finished existing files in {elapsed}", swExisting.Elapsed);
 
         await _bucketCleaner.PurgeUnfinishedLargeFiles(bucket);
-        sw.Stop();
 
         Logger.LogInformation("Failed uploads {count} to retry", _failedUploads.Count);
+        var swRetries = Stopwatch.StartNew();
+        await RetryFailedUploads(options, bucket, token);
+        swRetries.Stop();
+        Logger.LogInformation("Completed retry uploads in {elapsed}", swRetries.Elapsed);
 
+        sw.Stop();
         Logger.LogInformation("Sync completed in {elapsed}", sw.Elapsed);
     }
 
@@ -101,7 +104,7 @@ public class SyncTool
 
             if (directoryFileHash != bucketFileHash)
             {
-                await UploadFile(options, fileInSource, bucket, token);
+                await UploadFile(options, new UploadAttempt(fileInSource), bucket, token);
             }
             else
             {
@@ -136,12 +139,13 @@ public class SyncTool
         foreach (var key in addedKeys)
         {
             var fileInSource = directoryContents.Map[key];
-            await UploadFile(options, fileInSource, bucket, token);
+            await UploadFile(options, new UploadAttempt(fileInSource), bucket, token);
         }
     }
 
-    private async Task UploadFile(SyncOptions options, FileInfo fileInfo, BucketItem bucket, CancellationToken token)
+    private async Task UploadFile(SyncOptions options, UploadAttempt attempt, BucketItem bucket, CancellationToken token)
     {
+        var fileInfo = attempt.FileInfo;
         var relativePath = Path.GetRelativePath(options.SourceDirectory, fileInfo.FullName);
         var targetPath = Path.Combine(options.TargetPath, relativePath);
         var uri = new UriBuilder
@@ -166,8 +170,27 @@ public class SyncTool
         catch (Exception e)
         {
             Logger.LogError(e, "Failed to upload file {f}; queueing for retry later", fileInfo);
-            _failedUploads.Enqueue(fileInfo);
+            _failedUploads.Enqueue(attempt with { AttemptCount = attempt.AttemptCount + 1 });
         }
     }
+
+    private async Task RetryFailedUploads(SyncOptions options, BucketItem bucket, CancellationToken token)
+    {
+        while (_failedUploads.TryDequeue(out var item))
+        {
+            if (item.AttemptCount < MaxUploadAttempts)
+            {
+                Logger.LogInformation("Retrying upload of {file} attempts so far: {attempts}", item.FileInfo.FullName,
+                    item.AttemptCount);
+                await UploadFile(options, item, bucket, token);
+            }
+            else
+            {
+                Logger.LogWarning("Maximum upload attempts reached for {item}, giving up", item.FileInfo.FullName);
+            }
+        }
+    }
+
+    private record UploadAttempt(FileInfo FileInfo, int AttemptCount = 0);
 }
 

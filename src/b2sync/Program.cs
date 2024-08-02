@@ -35,20 +35,23 @@ class Program
         var loggerFactory = LoggerFactory.Create(builder =>
         {
             builder
-                .AddFilter("Bytewizer.Backblaze", LogLevel.Trace)
+                //.AddFilter("Bytewizer.Backblaze", LogLevel.Trace)
                 .AddFile("SyncLog-{Date}.txt",
                     outputTemplate:
                     "{Timestamp:o} {RequestId,13} [{Level:u3}] {Message} ({EventId:x8}){Properties}{NewLine}{Exception}")
                 .AddDebug()
                 .AddSimpleConsole()
-                .SetMinimumLevel(LogLevel.Debug);
+                .SetMinimumLevel(LogLevel.Information);
         });
 
         var cache = new MemoryCache(new MemoryCacheOptions());
         var client = new BackblazeClient(options, loggerFactory, cache);
         await client.ConnectAsync();
 
-        var checksumCalculator = new FileChecksumCalculator();
+        var checksumCalculator = new FileChecksumCalculator
+        {
+            Logger = loggerFactory.CreateLogger<FileChecksumCalculator>()
+        };
         var directoryReader = new DirectoryReader();
         var bucketReader = new BucketReader(client);
         var bucketCleaner = new BucketCleaner(client)

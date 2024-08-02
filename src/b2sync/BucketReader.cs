@@ -14,22 +14,15 @@ public interface IBucketReader
     Task<BucketContents> GetBucketContents(BucketReaderOptions options);
 }
 
-public class BucketReader : IBucketReader
+public class BucketReader(IStorageClient client) : IBucketReader
 {
-    private readonly IStorageClient _client;
-
-    public BucketReader(IStorageClient client)
-    {
-        _client = client;
-    }
-
     public async Task<BucketContents> GetBucketContents(BucketReaderOptions options)
     {
-        var bucket = await _client.Buckets.FindByNameAsync(options.TargetBucket);
+        var bucket = await client.Buckets.FindByNameAsync(options.TargetBucket);
         if (bucket == null)
             throw new InvalidOperationException($"could not find bucket named \"{options.TargetBucket}\"");
 
-        var files = await _client.Files.GetEnumerableAsync(new ListFileNamesRequest(bucket.BucketId));
+        var files = await client.Files.GetEnumerableAsync(new ListFileNamesRequest(bucket.BucketId));
         var filesList = files.ToList();
         return new BucketContents
         {
