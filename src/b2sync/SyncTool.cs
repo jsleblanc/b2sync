@@ -143,18 +143,16 @@ public class SyncTool
         }
     }
 
+    private static string CalculateTargetPath(SyncOptions options, FileInfo fileInfo)
+    {
+        var relativePath = Path.GetRelativePath(options.SourceDirectory, fileInfo.FullName);
+        return $"{options.TargetPath}/{relativePath}";
+    }
+
     private async Task UploadFile(SyncOptions options, UploadAttempt attempt, BucketItem bucket, CancellationToken token)
     {
         var fileInfo = attempt.FileInfo;
-        var relativePath = Path.GetRelativePath(options.SourceDirectory, fileInfo.FullName);
-        var targetPath = Path.Combine(options.TargetPath, relativePath);
-        var uri = new UriBuilder
-        {
-            Scheme = Uri.UriSchemeFile,
-            Path = targetPath,
-            Host = string.Empty
-        };
-        var bucketPath = uri.Uri.ToString().Replace("file://", string.Empty);
+        var bucketPath = CalculateTargetPath(options, fileInfo);
 
         try
         {
