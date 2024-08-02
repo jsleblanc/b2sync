@@ -6,67 +6,68 @@ namespace b2sync;
 
 class Program
 {
-
+    private const string KeyId = "KEY_ID";
+    private const string ApplicationKey = "APPLICATION_KEY";
+    private const string SourceDir = "SOURCE_DIR";
+    private const string TargetBucket = "TARGET_BUCKET";
+    private const string TargetPath = "TARGET_PATH";
 
     static async Task Main(string[] args)
     {
+        DotNetEnv.Env.TraversePath().Load();
+
         var syncOpts = new SyncOptions
         {
-            ApplicationKey = keySecret,
-            KeyId = keyId,
-            SourceDirectory = "/Volumes/Time Machine",
-            TargetBucket = TimeMachineBucket,
-            TargetPath = "TimeMachineBackups/"
+            ApplicationKey = GetEnvironmentVariableOrThrow(ApplicationKey),
+            KeyId = GetEnvironmentVariableOrThrow(KeyId),
+            SourceDirectory = GetEnvironmentVariableOrThrow(SourceDir),
+            TargetBucket = GetEnvironmentVariableOrThrow(TargetBucket),
+            TargetPath = GetEnvironmentVariableOrThrow(TargetPath)
         };
 
-        var options = new ClientOptions();
+        var options = new ClientOptions
+        {
+            KeyId = syncOpts.KeyId,
+            ApplicationKey = syncOpts.ApplicationKey
+        };
+        options.Validate();
+
         var loggerFactory = LoggerFactory.Create(builder =>
         {
             builder
                 .AddFilter("Bytewizer.Backblaze", LogLevel.Trace)
-                .AddDebug();
+                .AddFile("SyncLog-{Date}.txt",
+                    outputTemplate:
+                    "{Timestamp:o} {RequestId,13} [{Level:u3}] {Message} ({EventId:x8}){Properties}{NewLine}{Exception}")
+                .AddDebug()
+                .AddSimpleConsole()
+                .SetMinimumLevel(LogLevel.Debug);
         });
 
         var cache = new MemoryCache(new MemoryCacheOptions());
         var client = new BackblazeClient(options, loggerFactory, cache);
-        await client.ConnectAsync(syncOpts.KeyId, syncOpts.ApplicationKey);
-
-
+        await client.ConnectAsync();
 
         var checksumCalculator = new FileChecksumCalculator();
-
         var directoryReader = new DirectoryReader();
         var bucketReader = new BucketReader(client);
-        var bucketCleaner = new BucketCleaner(client);
-
-
-        var tool = new SyncTool(client, checksumCalculator, directoryReader, bucketReader, bucketCleaner);
-        await tool.Sync(syncOpts, CancellationToken.None);
-
-        /*
-        var directoryContents = directoryReader.GetDirectoryContents(syncOpts.SourceDirectory);
-        var bucketContents = await bucketReader.GetBucketContents(new BucketReaderOptions
+        var bucketCleaner = new BucketCleaner(client)
         {
-            TargetBucket = syncOpts.TargetBucket,
-            TargetPath = syncOpts.TargetPath
-        });
+            Logger = loggerFactory.CreateLogger<BucketCleaner>()
+        };
 
-        //added
-        var addedKeys = directoryContents.Map.Keys.Except(bucketContents.Map.Keys).ToList();
+        var tool = new SyncTool(client, checksumCalculator, directoryReader, bucketReader, bucketCleaner)
+        {
+            Logger = loggerFactory.CreateLogger<SyncTool>()
+        };
+        await tool.Sync(syncOpts, CancellationToken.None);
+    }
 
-        //removed
-        var removedKeys = bucketContents.Map.Keys.Except(directoryContents.Map.Keys).ToList();
-
-        //existing
-        var existingKeys = directoryContents.Map.Keys.Intersect(bucketContents.Map.Keys).ToList();
-
-        Console.WriteLine($"Added keys {addedKeys.Count}");
-        Console.WriteLine($"Removed keys {removedKeys.Count}");
-        Console.WriteLine($"Existing keys {existingKeys.Count}");
-
-        var tmBucket = await client.Buckets.FindByNameAsync(TimeMachineBucket);
-        await bucketCleaner.PurgeUnfinishedLargeFiles(tmBucket);
-*/
-        Console.WriteLine("Hello, World!");
+    private static string GetEnvironmentVariableOrThrow(string name)
+    {
+        var env = Environment.GetEnvironmentVariable(name);
+        if (string.IsNullOrWhiteSpace(env))
+            throw new InvalidOperationException($"could not find environment variable {name}");
+        return env;
     }
 }

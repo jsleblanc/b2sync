@@ -97,3 +97,6 @@ ClientBin/
 node_modules/
 orleans.codegen.cs
 .idea/*
+
+# Environment config files
+.env
