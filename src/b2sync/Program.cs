@@ -1,10 +1,6 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
-using Bytewizer.Backblaze.Client;
-using Bytewizer.Backblaze.Models;
+﻿using Bytewizer.Backblaze.Client;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using FileInfo = System.IO.FileInfo;
 
 namespace b2sync;
 
@@ -23,47 +19,6 @@ class Program
             TargetPath = "TimeMachineBackups/"
         };
 
-        var checksumCalculator = new FileChecksumCalculator();
-        var scanner = new DirectoryScanner();
-
-        //var allFiles = scanner.FindAllFilesInPath(syncOpts.SourceDirectory);
-        //var tasks = allFiles.Select(f => new SyncTask { File = f }).ToList();
-
-        var syncTracker = new SyncStateTracker(new FileInfo("sync-989b032b.sqlite"));
-        syncTracker.Initialize();
-        //syncTracker.SeedTasks(tasks);
-
-        var sw = Stopwatch.StartNew();
-
-        Console.WriteLine("Hashing files");
-        var tasks = syncTracker.GetIncompleteTasks();
-
-        var hashedTasks = new ConcurrentBag<SyncTask>();
-        Parallel.ForEach(tasks, () => new List<SyncTask>(), (task, loopState, localState) =>
-        {
-            var hash = checksumCalculator.CalculateSha1(task.File);
-            localState.Add(task with { Hash = hash });
-            return localState;
-        }, (state) =>
-        {
-            foreach (var t in state)
-                hashedTasks.Add(t);
-            Console.WriteLine($"Hashed {state.Count} items");
-        });
-
-/*
-        foreach (var task in tasks)
-        {
-            Console.Write($"{task.File}...");
-            var hash = checksumCalculator.CalculateSha1(task.File);
-            Console.WriteLine(hash);
-            syncTracker.SetHash(task with { Hash = hash });
-        }*/
-
-        sw.Stop();
-
-
-
         var options = new ClientOptions();
         var loggerFactory = LoggerFactory.Create(builder =>
         {
@@ -73,33 +28,45 @@ class Program
         });
 
         var cache = new MemoryCache(new MemoryCacheOptions());
-
         var client = new BackblazeClient(options, loggerFactory, cache);
-        await client.ConnectAsync(keyId, keySecret);
+        await client.ConnectAsync(syncOpts.KeyId, syncOpts.ApplicationKey);
+
+
+
+        var checksumCalculator = new FileChecksumCalculator();
+
+        var directoryReader = new DirectoryReader();
+        var bucketReader = new BucketReader(client);
+        var bucketCleaner = new BucketCleaner(client);
+
+
+        var tool = new SyncTool(client, checksumCalculator, directoryReader, bucketReader, bucketCleaner);
+        await tool.Sync(syncOpts, CancellationToken.None);
+
+        /*
+        var directoryContents = directoryReader.GetDirectoryContents(syncOpts.SourceDirectory);
+        var bucketContents = await bucketReader.GetBucketContents(new BucketReaderOptions
+        {
+            TargetBucket = syncOpts.TargetBucket,
+            TargetPath = syncOpts.TargetPath
+        });
+
+        //added
+        var addedKeys = directoryContents.Map.Keys.Except(bucketContents.Map.Keys).ToList();
+
+        //removed
+        var removedKeys = bucketContents.Map.Keys.Except(directoryContents.Map.Keys).ToList();
+
+        //existing
+        var existingKeys = directoryContents.Map.Keys.Intersect(bucketContents.Map.Keys).ToList();
+
+        Console.WriteLine($"Added keys {addedKeys.Count}");
+        Console.WriteLine($"Removed keys {removedKeys.Count}");
+        Console.WriteLine($"Existing keys {existingKeys.Count}");
 
         var tmBucket = await client.Buckets.FindByNameAsync(TimeMachineBucket);
-        var buckets = await client.Buckets.GetAsync();
-
-        foreach (var bucket in buckets)
-            Console.WriteLine($"ID: {bucket.BucketId} - Bucket Name: {bucket.BucketName} - Type: {bucket.BucketType}");
-
-        var unfinishedFiles =
-            await client.Files.GetEnumerableAsync(new ListUnfinishedLargeFilesRequest(tmBucket.BucketId));
-/*
-        foreach (var unfinishedFile in unfinishedFiles)
-        {
-            Console.WriteLine(unfinishedFile.FileName);
-        }
+        await bucketCleaner.PurgeUnfinishedLargeFiles(tmBucket);
 */
-        Console.WriteLine($"unfinished files: {unfinishedFiles.Count()}");
-
-        var files = await client.Files.GetEnumerableAsync(new ListFileNamesRequest(tmBucket.BucketId));
-        /*
-        foreach (var file in files)
-        {
-            Console.WriteLine(file.FileName);
-        }*/
-
         Console.WriteLine("Hello, World!");
     }
 }
