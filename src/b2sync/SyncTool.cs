@@ -144,14 +144,21 @@ public class SyncTool
     {
         var relativePath = Path.GetRelativePath(options.SourceDirectory, fileInfo.FullName);
         var targetPath = Path.Combine(options.TargetPath, relativePath);
+        var uri = new UriBuilder
+        {
+            Scheme = Uri.UriSchemeFile,
+            Path = targetPath,
+            Host = string.Empty
+        };
+        var bucketPath = uri.Uri.ToString().Replace("file://", string.Empty);
 
         try
         {
-            Logger.LogInformation("Uploading {fs} to {fd}", fileInfo.FullName, targetPath);
+            Logger.LogInformation("Uploading {fs} to {fd}", fileInfo.FullName, bucketPath);
             await using var fs = new FileStream(fileInfo.FullName, FileMode.Open);
             await using var bs = new BufferedStream(fs);
             await _client.UploadAsync(
-                new UploadFileByBucketIdRequest(bucket.BucketId, targetPath),
+                new UploadFileByBucketIdRequest(bucket.BucketId, bucketPath),
                 bs,
                 _progressBar,
                 token);
