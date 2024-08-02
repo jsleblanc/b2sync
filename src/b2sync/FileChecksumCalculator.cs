@@ -5,7 +5,7 @@ namespace b2sync;
 
 public class FileChecksumCalculator : IFileChecksumCalculator
 {
-    public string CalculateSha1(FileInfo file)
+    public Sha1Hash CalculateSha1(FileInfo file)
     {
         using var fs = new FileStream(file.FullName, FileMode.Open);
         using var bs = new BufferedStream(fs);
@@ -18,6 +18,6 @@ public class FileChecksumCalculator : IFileChecksumCalculator
             formatted.Append($"{b:X2}");
         }
 
-        return formatted.ToString();
+        return new Sha1Hash(formatted.ToString());
     }
 }

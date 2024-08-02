@@ -2,5 +2,5 @@ namespace b2sync;
 
 public interface IFileChecksumCalculator
 {
-    string CalculateSha1(FileInfo file);
+    Sha1Hash CalculateSha1(FileInfo file);
 }
