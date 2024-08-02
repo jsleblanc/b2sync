@@ -24,7 +24,6 @@ class Program
             TargetBucket = GetEnvironmentVariableOrThrow(TargetBucket),
             TargetPath = GetEnvironmentVariableOrThrow(TargetPath)
         };
-        syncOpts.Validate();
 
         var options = new ClientOptions
         {
@@ -64,8 +63,6 @@ class Program
         {
             Logger = loggerFactory.CreateLogger<SyncTool>()
         };
-
-
         await tool.Sync(syncOpts, CancellationToken.None);
     }
 
