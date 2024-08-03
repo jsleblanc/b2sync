@@ -11,5 +11,5 @@ public static class FileKeyExtensions
         => new(Path.GetRelativePath(path, fileInfo.FullName));
 
     public static FileKey FromFileItem(this FileItem fileItem, string path) =>
-        new FileKey(Path.GetRelativePath(path, fileItem.FileName));
+        new(Path.GetRelativePath(path, fileItem.FileName));
 }
