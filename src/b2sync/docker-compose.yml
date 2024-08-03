@@ -1,15 +1,18 @@
-﻿services:
+﻿# docker-compose.yml
+version: '3.9'
+
+services:
   b2sync:
-    image: b2sync
+    image: b2sync:dev
     build:
       context: .
       dockerfile: src/b2sync/Dockerfile
     environment:
-      KEY_ID: "TODO"
-      APPLICATION_KEY: "TODO"
-      SOURCE_DIR: "TODO"
-      TARGET_BUCKET: "jleblancBackupTimeMachine2"
-      TARGET_PATH: "TimeMachineBackups"
+      - KEY_ID=TODO
+      - APPLICATION_KEY=TODO
+      - SOURCE_DIR=TODO
+      - TARGET_BUCKET=jleblancBackupTimeMachine2
+      - TARGET_PATH=TimeMachineBackups
     logging:
       driver: syslog
       options:

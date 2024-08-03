@@ -3,6 +3,8 @@ using Bytewizer.Backblaze.Models;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Serilog;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace b2sync;
 
@@ -39,10 +41,15 @@ class Program
         };
         options.Validate();
 
+        var localSysLogger = new LoggerConfiguration()
+            .WriteTo.LocalSyslog()
+            .CreateLogger();
+
         var loggerFactory = LoggerFactory.Create(builder =>
         {
             builder
                 //.AddFilter("Bytewizer.Backblaze", LogLevel.Trace)
+                .AddSerilog(localSysLogger)
                 .AddFile("SyncLog-{Date}.txt",
                     outputTemplate:
                     "{Timestamp:o} {RequestId,13} [{Level:u3}] {Message} ({EventId:x8}){Properties}{NewLine}{Exception}")

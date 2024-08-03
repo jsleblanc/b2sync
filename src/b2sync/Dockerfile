@@ -10,7 +10,6 @@ COPY ["src/Client/Backblaze.Client.csproj", "src/Client/"]
 RUN dotnet restore "src/b2sync/b2sync.csproj"
 COPY . .
 WORKDIR "/src/src/b2sync"
-RUN rm .env
 RUN dotnet build "b2sync.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
