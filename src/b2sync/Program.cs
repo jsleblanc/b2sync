@@ -59,13 +59,15 @@ class Program
         });
         Logger = loggerFactory.CreateLogger<Program>();
 
+        Logger.LogInformation("SyncTool started");
+        Logger.LogInformation("Running as user: {user}", Environment.UserName);
+
         var checksumCalculator = new FileChecksumCalculator
         {
             Logger = loggerFactory.CreateLogger<FileChecksumCalculator>()
         };
 
         var directoryReader = new DirectoryReader();
-
         var cache = new MemoryCache(new MemoryCacheOptions());
         var client = new BackblazeClient(options, loggerFactory, cache);
         var bucketReader = new BucketReader(client);
@@ -88,6 +90,11 @@ class Program
         {
             Logger.LogCritical(e, "Fatal!");
             throw;
+        }
+        finally
+        {
+            await Log.CloseAndFlushAsync();
+            loggerFactory.Dispose();
         }
     }
 

@@ -43,7 +43,7 @@ public class DirectoryReader : IDirectoryReader
     {
         if (directoryInfo == null) return false;
         var isParentExcluded = IsExcludedDirectory(directoryInfo.Parent);
-        return _excludeDirectories.Contains(directoryInfo.Name) || isParentExcluded;
+        return isParentExcluded || _excludeDirectories.Contains(directoryInfo.Name);
     }
 }
 

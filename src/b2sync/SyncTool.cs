@@ -5,7 +5,6 @@ using Bytewizer.Backblaze.Progress;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using FileInfo = System.IO.FileInfo;
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace b2sync;
 

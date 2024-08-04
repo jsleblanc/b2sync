@@ -19,7 +19,7 @@ public class FileChecksumCalculator : IFileChecksumCalculator
         var sw = Stopwatch.StartNew();
         var hash = sha1.ComputeHash(bs);
         sw.Stop();
-        Logger.LogDebug("Calculated SHA1 of {file} in {elapsed}", file.FullName, sw.Elapsed);
+        Logger.LogDebug("SHA1:{hash} - {file} in {elapsed}", hash, file.FullName, sw.Elapsed);
 
         var formatted = new StringBuilder(2 * hash.Length);
         foreach (var b in hash)
