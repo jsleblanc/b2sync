@@ -53,6 +53,8 @@ public class SyncTool
         });
         Logger.LogInformation("Found {files} in bucket ({elapsed})", bucketContents.Items.Count, sw.Elapsed);
 
+        await _bucketCleaner.PurgeUnfinishedLargeFiles(bucket);
+
         Logger.LogInformation("Uploading new files");
         var swAdded = Stopwatch.StartNew();
         await UploadAddedFiles(directoryContents, bucketContents, bucket, options, token);
