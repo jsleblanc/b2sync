@@ -82,6 +82,9 @@ public class SyncTool
         swRetries.Stop();
         Logger.LogInformation("Completed retry uploads in {elapsed}", swRetries.Elapsed);
 
+        await _bucketCleaner.PurgeUnfinishedLargeFiles(bucket);
+        await _bucketCleaner.PurgePriorVersions(bucket);
+
         sw.Stop();
         Logger.LogInformation("Sync completed in {elapsed}", sw.Elapsed);
     }
