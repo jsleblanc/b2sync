@@ -54,6 +54,7 @@ public class SyncTool
         Logger.LogInformation("Found {files} in bucket ({elapsed})", bucketContents.Items.Count, sw.Elapsed);
 
         await _bucketCleaner.PurgeUnfinishedLargeFiles(bucket);
+        await _bucketCleaner.PurgePriorVersions(bucket);
 
         Logger.LogInformation("Uploading new files");
         var swAdded = Stopwatch.StartNew();
