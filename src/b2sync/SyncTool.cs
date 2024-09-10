@@ -74,8 +74,6 @@ public class SyncTool
         swExisting.Stop();
         Logger.LogInformation("Finished existing files in {elapsed}", swExisting.Elapsed);
 
-        await _bucketCleaner.PurgeUnfinishedLargeFiles(bucket);
-
         Logger.LogInformation("Failed uploads {count} to retry", _failedUploads.Count);
         var swRetries = Stopwatch.StartNew();
         await RetryFailedUploads(options, bucket, token);
